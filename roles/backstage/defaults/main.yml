@@ -107,9 +107,6 @@ backstage_role_docker_envs_default:
   POSTGRES_PORT: "5432"
   POSTGRES_USER: "{{ lookup('role_var', '_postgres_user', role='backstage', default=lookup('role_var', '_docker_env_user', role='postgres'), default_if_empty=true) }}"
   POSTGRES_PASSWORD: "{{ lookup('role_var', '_postgres_password', role='backstage', default=lookup('role_var', '_docker_env_password', role='postgres'), default_if_empty=true) }}"
-  # Replace the localhost URLs shipped in the image's app-config.production.yaml.
-  APP_CONFIG_app_baseUrl: "{{ lookup('role_var', '_web_url', role='backstage') }}"
-  APP_CONFIG_backend_baseUrl: "{{ lookup('role_var', '_web_url', role='backstage') }}"
 backstage_role_docker_envs_custom: {}
 backstage_role_docker_envs: "{{ lookup('role_var', '_docker_envs_default', role='backstage')
                                 | combine(lookup('role_var', '_docker_envs_custom', role='backstage')) }}"

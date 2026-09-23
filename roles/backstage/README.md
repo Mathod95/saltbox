@@ -4,7 +4,7 @@
 
 [Backstage](https://backstage.io) is a developer portal (internal developer platform) that centralizes a service catalog, technical documentation (TechDocs), and scaffolding templates. This role deploys a stateless Backstage container built and published by GitHub Actions from [Mathod95/backstage](https://github.com/Mathod95/backstage) (`ghcr.io/mathod95/backstage`), backed by a dedicated Postgres instance.
 
-The Postgres instance is deployed by the role itself through Saltbox's native `postgres` role (named `backstage-postgres`), following the same pattern as the mainline `authentik` role. Its password is generated once and persisted with `saltbox_facts`, so nothing has to be written in the Inventory.
+The Postgres instance is deployed by the role itself through Saltbox's native `postgres` role (named `backstage-postgres`), following the same pattern as the `authentik` role of the main Saltbox repository. Its password is generated once and persisted with `saltbox_facts`, so nothing has to be written in the Inventory.
 
 The stock Backstage image only ships the `guest` auth provider, which provides no real security. The role therefore puts Authelia in front of Backstage by default (`backstage_role_traefik_sso_middleware`). Once a real auth provider is configured in the image, set that variable to `""` in the Inventory to remove the Authelia layer.
 
@@ -31,7 +31,7 @@ Re-running the command recreates the Backstage container with the current image 
 
 Visit `https://backstage.YOUR_DOMAIN`.
 
-The public URL is injected automatically through `APP_CONFIG_app_baseUrl` and `APP_CONFIG_backend_baseUrl`, which override the `localhost` values of the image's `app-config.production.yaml` (`APP_CONFIG_*` variables have the highest configuration precedence). Changing the domain does not require rebuilding the image.
+This role only installs and updates the container. It does not configure the application: the public URL (`app.baseUrl`, `backend.baseUrl`), authentication, and everything else live in the application's own configuration, in the image built from [Mathod95/backstage](https://github.com/Mathod95/backstage), so the same image stays deployable elsewhere (for example on Kubernetes). The only environment variables the role passes are the Postgres connection settings that the stock `app-config.production.yaml` already reads (`POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`).
 
 ## Configuration
 
