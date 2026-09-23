@@ -4,7 +4,7 @@
 
 [Backstage](https://backstage.io) is a developer portal (internal developer platform) that centralizes a service catalog, technical documentation (TechDocs), and scaffolding templates. This role deploys the Mathod.io Backstage instance: a stateless application container, image built and published by GitHub Actions from [Mathod95/backstage](https://github.com/Mathod95/backstage), with Postgres as the persistence backend (catalog, scaffolding tasks, TechDocs metadata).
 
-Backstage handles its own authentication (GitHub OAuth): this role does not put an Authelia layer in front of it. No homemade Postgres container either: this role reuses Saltbox's **native** `postgres` role, which already handles persistence, multiple instances, and major-version migrations correctly. Backstage becomes an additional named instance of that role rather than its own bundled database.
+The stock Backstage image only ships the `guest` auth provider, which provides no real security. This role therefore puts Authelia in front of Backstage by default (`backstage_traefik_sso_middleware`). Once a real auth provider (e.g. GitHub OAuth) is configured in the image, set that variable to `""` in the Inventory to remove the Authelia layer. No homemade Postgres container either: this role reuses Saltbox's **native** `postgres` role, which already handles persistence, multiple instances, and major-version migrations correctly. Backstage becomes an additional named instance of that role rather than its own bundled database.
 
 ## Requirements
 
@@ -42,6 +42,8 @@ All variables follow the standard Saltbox `backstage_*` convention (see `default
 | `backstage_docker_image_repo` / `_tag` | GHCR image to deploy | Inventory, to pin an exact tag/digest in production |
 | `backstage_docker_env_user` / `_password` / `_db` | Postgres credentials, shared with the matching `postgres` instance | Inventory, required, never committed |
 | `backstage_docker_envs_custom` | application secrets (`backend.auth.keys`, GitHub OAuth client...) | Inventory, required, never committed |
+
+The public URL is injected automatically: the role sets `APP_CONFIG_app_baseUrl` and `APP_CONFIG_backend_baseUrl` to `https://<subdomain>.<domain>`, overriding the `localhost` values shipped in the image's `app-config.production.yaml` (`APP_CONFIG_*` variables have the highest configuration precedence). No image rebuild is needed when the domain changes.
 
 Full Inventory example — **never put these values in this repo**:
 

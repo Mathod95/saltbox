@@ -42,8 +42,9 @@ backstage_dns_proxy: "{{ dns.proxied }}"
 # Traefik
 ################################
 
-# Backstage gère sa propre authentification (GitHub OAuth) : pas de couche Authelia devant.
-backstage_traefik_sso_middleware: ""
+# The stock Backstage image only ships the guest auth provider (no real security),
+# so Authelia sits in front of it. Set to "" once a real auth provider is configured.
+backstage_traefik_sso_middleware: "{{ traefik_default_sso_middleware }}"
 backstage_traefik_middleware_default: "{{ traefik_default_middleware }}"
 backstage_traefik_middleware_custom: ""
 backstage_traefik_certresolver: "{{ traefik_default_certresolver }}"
@@ -96,6 +97,10 @@ backstage_docker_envs_default:
   POSTGRES_USER: "{{ backstage_postgres_user }}"
   POSTGRES_PASSWORD: "{{ backstage_postgres_password }}"
   POSTGRES_DB: "{{ backstage_postgres_db }}"
+  # Override the localhost baseUrl values baked into app-config.production.yaml
+  # (APP_CONFIG_* has the highest config precedence, so the image stays unmodified).
+  APP_CONFIG_app_baseUrl: "{{ backstage_web_url }}"
+  APP_CONFIG_backend_baseUrl: "{{ backstage_web_url }}"
 # Réservé pour les secrets propres à l'app (backend.auth.keys, client OAuth GitHub, etc.)
 # une fois l'app-config.yaml réel écrit dans le repo backstage — ne pas deviner les noms ici.
 backstage_docker_envs_custom: {}
