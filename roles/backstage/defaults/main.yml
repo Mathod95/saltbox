@@ -1,7 +1,10 @@
 ##########################################################################
-# Title:            Saltbox_mod: Backstage                               #
-# URL:              https://github.com/Mathod95/saltbox                 #
+# Title:         Saltbox Mod: Backstage | Default Variables              #
+# Author(s):     Mathod                                                  #
+# URL:           https://github.com/Mathod95/saltbox                     #
 # --                                                                     #
+##########################################################################
+#                   GNU General Public License v3.0                      #
 ##########################################################################
 ---
 ################################
@@ -11,161 +14,124 @@
 backstage_name: backstage
 
 ################################
+# Postgres
+################################
+
+# Backstage always requires Postgres, this only allows skipping the instance Saltbox deploys.
+backstage_role_postgres_deploy: true
+backstage_role_postgres_name: "{{ backstage_name }}-postgres"
+# If empty it will fall back to the postgres role default.
+backstage_role_postgres_user: ""
+# Defaults to a persisted generated value.
+backstage_role_postgres_password: "{{ backstage_saltbox_facts.facts.postgres_password }}"
+backstage_role_postgres_docker_env_db: "{{ backstage_name }}"
+backstage_role_postgres_docker_image_repo: "postgres"
+backstage_role_postgres_docker_image_tag: "17-alpine"
+backstage_role_postgres_docker_healthcheck:
+  test:
+    - "CMD"
+    - "pg_isready"
+    - "-d"
+    - "{{ lookup('role_var', '_postgres_docker_env_db', role='backstage') }}"
+    - "-U"
+    - "{{ lookup('role_var', '_postgres_user', role='backstage', default=lookup('role_var', '_docker_env_user', role='postgres'), default_if_empty=true) }}"
+  start_period: 20s
+  interval: 30s
+  retries: 5
+  timeout: 5s
+backstage_role_postgres_paths_folder: "{{ backstage_name }}/postgres"
+backstage_role_postgres_paths_location: "{{ server_appdata_path }}/{{ lookup('role_var', '_postgres_paths_folder', role='backstage') }}"
+
+################################
 # Paths
 ################################
 
-backstage_paths_folder: "{{ backstage_name }}"
-backstage_paths_location: "{{ server_appdata_path }}/{{ backstage_paths_folder }}"
-backstage_paths_folders_list:
-  - "{{ backstage_paths_location }}"
+backstage_role_paths_folder: "{{ backstage_name }}"
+backstage_role_paths_location: "{{ server_appdata_path }}/{{ backstage_role_paths_folder }}"
+backstage_role_paths_folders_list:
+  - "{{ backstage_role_paths_location }}"
 
 ################################
 # Web
 ################################
 
-backstage_web_subdomain: "{{ backstage_name }}"
-backstage_web_domain: "{{ user.domain }}"
-backstage_web_port: "7007" # port unique backend Backstage (sert aussi le frontend buildé en prod) — À CONFIRMER une fois l'app-config réel écrit
-backstage_web_url: "{{ 'https://' + (backstage_web_subdomain + '.' + backstage_web_domain
-                     if (backstage_web_subdomain | length > 0)
-                     else backstage_web_domain) }}"
+backstage_role_web_subdomain: "{{ backstage_name }}"
+backstage_role_web_domain: "{{ user.domain }}"
+backstage_role_web_port: "7007"
+backstage_role_web_url: "{{ lookup('role_web', role='backstage', scheme='https') }}"
 
 ################################
 # DNS
 ################################
 
-backstage_dns_record: "{{ backstage_web_subdomain }}"
-backstage_dns_zone: "{{ backstage_web_domain }}"
-backstage_dns_proxy: "{{ dns.proxied }}"
+backstage_role_dns_record: "{{ lookup('role_var', '_web_subdomain', role='backstage') }}"
+backstage_role_dns_zone: "{{ lookup('role_var', '_web_domain', role='backstage') }}"
+backstage_role_dns_proxy: "{{ dns_proxied }}"
 
 ################################
 # Traefik
 ################################
 
-# The stock Backstage image only ships the guest auth provider (no real security),
-# so Authelia sits in front of it. Set to "" once a real auth provider is configured.
-backstage_traefik_sso_middleware: "{{ traefik_default_sso_middleware }}"
-backstage_traefik_middleware_default: "{{ traefik_default_middleware }}"
-backstage_traefik_middleware_custom: ""
-backstage_traefik_certresolver: "{{ traefik_default_certresolver }}"
-backstage_traefik_enabled: true
-backstage_traefik_api_enabled: false
-backstage_traefik_api_endpoint: ""
-
-################################
-# Postgres
-################################
-
-# Instance Postgres dédiée, provisionnée par le rôle "postgres" natif de Saltbox
-# (pas par ce rôle) : ajouter "backstage" à postgres_instances dans l'Inventory.
-# Voir README.md de ce repo pour la configuration complète.
-backstage_postgres_instance: "backstage"
-backstage_postgres_port: "5432"
-backstage_postgres_user: "{{ backstage_docker_env_user | default('backstage') }}"
-backstage_postgres_password: "{{ backstage_docker_env_password }}" # défini dans l'Inventory, jamais ici
-backstage_postgres_db: "{{ backstage_docker_env_db | default('backstage') }}"
+# The stock Backstage image only ships the guest auth provider, which provides
+# no real security. Authelia protects it until a real auth provider is configured.
+# Set to "" once one is.
+backstage_role_traefik_sso_middleware: "{{ traefik_default_sso_middleware }}"
+backstage_role_traefik_middleware_default: "{{ traefik_default_middleware }}"
+backstage_role_traefik_middleware_custom: ""
+backstage_role_traefik_middleware_default_api: "{{ traefik_default_middleware_api }}"
+backstage_role_traefik_middleware_custom_api: ""
+backstage_role_traefik_certresolver: "{{ traefik_default_certresolver }}"
+backstage_role_traefik_enabled: true
+backstage_role_traefik_api_enabled: false
+backstage_role_traefik_api_endpoint: ""
 
 ################################
 # Docker
 ################################
 
 # Container
-backstage_docker_container: "{{ backstage_name }}"
+backstage_role_docker_container: "{{ backstage_name }}"
 
-# Image — construite par GitHub Actions et poussée sur GHCR (repo backstage séparé)
-backstage_docker_image_pull: true
-backstage_docker_image_repo: "ghcr.io/mathod95/backstage" # À CONFIRMER une fois le workflow CI écrit
-backstage_docker_image_tag: "latest" # pinner sur un tag/sha précis recommandé pour un vrai déploiement prod
-backstage_docker_image: "{{ backstage_docker_image_repo }}:{{ backstage_docker_image_tag }}"
-
-# Ports
-backstage_docker_ports_defaults: []
-backstage_docker_ports_custom: []
-backstage_docker_ports: "{{ backstage_docker_ports_defaults
-                            + backstage_docker_ports_custom }}"
+# Image
+# Built and published by GitHub Actions from https://github.com/Mathod95/backstage
+# Pin a tag or a commit sha for reproducible deployments.
+backstage_role_docker_image_pull: true
+backstage_role_docker_image_repo: "ghcr.io/mathod95/backstage"
+backstage_role_docker_image_tag: "latest"
+backstage_role_docker_image: "{{ lookup('role_var', '_docker_image_repo', role='backstage') }}:{{ lookup('role_var', '_docker_image_tag', role='backstage') }}"
 
 # Envs
-# POSTGRES_* : noms vérifiés en direct contre la doc officielle Backstage
-# (backstage.io/docs/tutorials/switching-sqlite-postgres/), pas une supposition.
-backstage_docker_envs_default:
-  PUID: "{{ uid }}"
-  PGID: "{{ gid }}"
+backstage_role_docker_envs_default:
   TZ: "{{ tz }}"
-  NODE_ENV: "production"
-  POSTGRES_HOST: "{{ backstage_postgres_instance }}"
-  POSTGRES_PORT: "{{ backstage_postgres_port }}"
-  POSTGRES_USER: "{{ backstage_postgres_user }}"
-  POSTGRES_PASSWORD: "{{ backstage_postgres_password }}"
-  POSTGRES_DB: "{{ backstage_postgres_db }}"
-  # Override the localhost baseUrl values baked into app-config.production.yaml
-  # (APP_CONFIG_* has the highest config precedence, so the image stays unmodified).
-  APP_CONFIG_app_baseUrl: "{{ backstage_web_url }}"
-  APP_CONFIG_backend_baseUrl: "{{ backstage_web_url }}"
-# Réservé pour les secrets propres à l'app (backend.auth.keys, client OAuth GitHub, etc.)
-# une fois l'app-config.yaml réel écrit dans le repo backstage — ne pas deviner les noms ici.
-backstage_docker_envs_custom: {}
-backstage_docker_envs: "{{ backstage_docker_envs_default
-                           | combine(backstage_docker_envs_custom) }}"
-
-# Commands
-backstage_docker_commands_default: []
-backstage_docker_commands_custom: []
-backstage_docker_commands: "{{ backstage_docker_commands_default
-                               + backstage_docker_commands_custom }}"
-
-# Volumes — aucun par défaut : image/app-config auto-suffisants, conteneur stateless.
-# Si un jour TechDocs "local builder" est utilisé (déconseillé en prod, cf. references/backstage.md),
-# ajouter un volume ici via backstage_docker_volumes_custom plutôt que modifier ce fichier.
-backstage_docker_volumes_default: []
-backstage_docker_volumes_custom: []
-backstage_docker_volumes: "{{ backstage_docker_volumes_default
-                              + backstage_docker_volumes_custom }}"
-
-# Devices
-backstage_docker_devices_default: []
-backstage_docker_devices_custom: []
-backstage_docker_devices: "{{ backstage_docker_devices_default
-                              + backstage_docker_devices_custom }}"
-
-# Hosts
-backstage_docker_hosts_default: []
-backstage_docker_hosts_custom: []
-backstage_docker_hosts: "{{ docker_hosts_common
-                            | combine(backstage_docker_hosts_default)
-                            | combine(backstage_docker_hosts_custom) }}"
-
-# Labels
-backstage_docker_labels_default: {}
-backstage_docker_labels_custom: {}
-backstage_docker_labels: "{{ docker_labels_common
-                             | combine(backstage_docker_labels_default)
-                             | combine(backstage_docker_labels_custom) }}"
+  POSTGRES_HOST: "{{ lookup('role_var', '_postgres_name', role='backstage') }}"
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: "{{ lookup('role_var', '_postgres_user', role='backstage', default=lookup('role_var', '_docker_env_user', role='postgres'), default_if_empty=true) }}"
+  POSTGRES_PASSWORD: "{{ lookup('role_var', '_postgres_password', role='backstage', default=lookup('role_var', '_docker_env_password', role='postgres'), default_if_empty=true) }}"
+  # Replace the localhost URLs shipped in the image's app-config.production.yaml.
+  APP_CONFIG_app_baseUrl: "{{ lookup('role_var', '_web_url', role='backstage') }}"
+  APP_CONFIG_backend_baseUrl: "{{ lookup('role_var', '_web_url', role='backstage') }}"
+backstage_role_docker_envs_custom: {}
+backstage_role_docker_envs: "{{ lookup('role_var', '_docker_envs_default', role='backstage')
+                                | combine(lookup('role_var', '_docker_envs_custom', role='backstage')) }}"
 
 # Hostname
-backstage_docker_hostname: "{{ backstage_name }}"
+backstage_role_docker_hostname: "{{ backstage_name }}"
 
 # Networks
-backstage_docker_networks_alias: "{{ backstage_name }}"
-backstage_docker_networks_default: []
-backstage_docker_networks_custom: []
-backstage_docker_networks: "{{ docker_networks_common
-                               + backstage_docker_networks_default
-                               + backstage_docker_networks_custom }}"
-
-# Capabilities
-backstage_docker_capabilities_default: []
-backstage_docker_capabilities_custom: []
-backstage_docker_capabilities: "{{ backstage_docker_capabilities_default
-                                   + backstage_docker_capabilities_custom }}"
-
-# Security Opts
-backstage_docker_security_opts_default: []
-backstage_docker_security_opts_custom: []
-backstage_docker_security_opts: "{{ backstage_docker_security_opts_default
-                                    + backstage_docker_security_opts_custom }}"
+backstage_role_docker_networks_alias: "{{ backstage_name }}"
+backstage_role_docker_networks_default: []
+backstage_role_docker_networks_custom: []
+backstage_role_docker_networks: "{{ docker_networks_common
+                                    + lookup('role_var', '_docker_networks_default', role='backstage')
+                                    + lookup('role_var', '_docker_networks_custom', role='backstage') }}"
 
 # Restart Policy
-backstage_docker_restart_policy: unless-stopped
+backstage_role_docker_restart_policy: unless-stopped
 
-# State
-backstage_docker_state: started
+################################
+# Dependencies
+################################
+
+backstage_role_depends_on: "{{ lookup('role_var', '_postgres_name', role='backstage') if lookup('role_var', '_postgres_deploy', role='backstage') else '' }}"
+backstage_role_depends_on_delay: "0"
+backstage_role_depends_on_healthchecks: "false"

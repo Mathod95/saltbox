@@ -1,21 +1,64 @@
 ##########################################################################
-# Title:            Saltbox_mod: Backstage                               #
-# URL:              https://github.com/Mathod95/saltbox                 #
+# Title:         Saltbox Mod: Backstage | Tasks                          #
+# Author(s):     Mathod                                                  #
+# URL:           https://github.com/Mathod95/saltbox                     #
 # --                                                                     #
 ##########################################################################
+#                   GNU General Public License v3.0                      #
+##########################################################################
 ---
-- name: Add DNS record
-  ansible.builtin.include_tasks: "{{ resources_tasks_path }}/dns/tasker.yml"
-  vars:
-    dns_record: "{{ lookup('vars', role_name + '_dns_record') }}"
-    dns_zone: "{{ lookup('vars', role_name + '_dns_zone') }}"
-    dns_proxy: "{{ lookup('vars', role_name + '_dns_proxy') }}"
-
 - name: Remove existing Docker container
   ansible.builtin.include_tasks: "{{ resources_tasks_path }}/docker/remove_docker_container.yml"
 
 - name: Create directories
   ansible.builtin.include_tasks: "{{ resources_tasks_path }}/directories/create_directories.yml"
+
+- name: Save Backstage Saltbox facts
+  saltbox_facts:
+    role: "backstage"
+    instance: "backstage"
+    keys:
+      postgres_password: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits'], length=32) }}"
+    owner: "{{ user.name }}"
+    group: "{{ user.name }}"
+    base_path: "{{ server_appdata_path }}"
+  register: backstage_saltbox_facts
+
+- name: Validate Postgres password
+  ansible.builtin.fail:
+    msg: "Set backstage_role_postgres_password to a non-empty string."
+  when: ((lookup('role_var', '_postgres_password', role='backstage') is not string) or (lookup('role_var', '_postgres_password', role='backstage') | trim | length == 0))
+
+- name: Import Postgres Role
+  ansible.builtin.include_role:
+    name: postgres
+  vars:
+    postgres_instances: ["{{ lookup('role_var', '_postgres_name', role='backstage') }}"]
+    postgres_role_docker_image_tag: "{{ lookup('role_var', '_postgres_docker_image_tag', role='backstage') }}"
+    postgres_role_docker_image_repo: "{{ lookup('role_var', '_postgres_docker_image_repo', role='backstage') }}"
+    postgres_role_paths_folder: "{{ lookup('role_var', '_postgres_paths_folder', role='backstage') }}"
+    postgres_role_paths_location: "{{ lookup('role_var', '_postgres_paths_location', role='backstage') }}"
+    postgres_role_docker_env_db: "{{ lookup('role_var', '_postgres_docker_env_db', role='backstage') }}"
+    postgres_role_docker_env_user_include: "{{ lookup('role_var', '_postgres_user', role='backstage') }}"
+    postgres_role_docker_env_password_include: "{{ lookup('role_var', '_postgres_password', role='backstage') }}"
+    postgres_role_docker_healthcheck: "{{ lookup('role_var', '_postgres_docker_healthcheck', role='backstage') }}"
+  when: lookup('role_var', '_postgres_deploy', role='backstage')
+
+- name: Add DNS record
+  ansible.builtin.include_tasks: "{{ resources_tasks_path }}/dns/tasker.yml"
+  vars:
+    dns_record: "{{ lookup('role_var', '_dns_record') }}"
+    dns_zone: "{{ lookup('role_var', '_dns_zone') }}"
+    dns_proxy: "{{ lookup('role_var', '_dns_proxy') }}"
+
+- name: Wait for Postgres container to be healthy
+  community.docker.docker_container_info:
+    name: "{{ lookup('role_var', '_postgres_name', role='backstage') }}"
+  register: backstage_postgres_container_info
+  until: backstage_postgres_container_info.container.State.Health.Status == 'healthy'
+  retries: 15
+  delay: 10
+  when: lookup('role_var', '_postgres_deploy', role='backstage')
 
 - name: Create Docker container
   ansible.builtin.include_tasks: "{{ resources_tasks_path }}/docker/create_docker_container.yml"
