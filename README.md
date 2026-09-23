@@ -34,5 +34,6 @@ Custom Saltbox roles (via [saltbox_mod](https://github.com/saltyorg/saltbox_mod)
 | Role | Description |
 |---|---|
 | [`backstage`](roles/backstage/) | Backstage developer portal, backed by a dedicated Postgres instance. |
+| [`tracearr`](roles/tracearr/) | Tracearr, copied unmodified from [saltyorg/Sandbox](https://github.com/saltyorg/Sandbox/tree/master/roles/tracearr) (author: connorgallopo, GPL-3.0, upstream commit `65efcf4c1e`). Register it with `- { role: tracearr, tags: ['tracearr', 'tracearr-claim'] }`. It uses Saltbox's native `redis` and `timescaledb` roles. |
 
 Each role's own README (`roles/<role>/README.md`) covers what it deploys, its specific requirements, configuration variables, and persistence guarantees.
